@@ -2,14 +2,14 @@
 
 This is the **backend** of the Mini Loan Request Platform, built with **Flask** 
 It provides the user to register and apply for a small loan
----
+
 
 ##  Features
 - RESTful API with JSON responses.
 - Database migrations using Alembic/Flask-Migrate
 - CORS enabled for frontend integration (React or any other client)
 - User management (create, read).
-- Loan management(create, read)
+- Loan management(create)
 
 ---
 
