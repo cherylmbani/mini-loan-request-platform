@@ -26,6 +26,16 @@ class User(db.Model, SerializerMixin):
     _password_hash=db.Column('password', db.Text, nullable=False)
     loans=db.relationship('Loan', back_populates="user")
 
+    @validates('first_name', 'last_name', 'email')
+    def validate_user(self, key, value):
+        if not value or not value.strip():
+            raise ValueError(f"{key.replace('_', ' ').title()} is required.")
+
+        if key == 'email':
+            if '@' not in value or '.' not in value:
+                raise ValueError("Invalid email format.")
+        return value
+
 
     @property
     def password(self):
@@ -60,6 +70,19 @@ class Loan(db.Model, SerializerMixin):
     user=db.relationship('User', back_populates="loans")
 
 
+    @validates('amount')
+    def validate_amount(self, key, value):
+        try:
+        
+            amount = float(value)
+        except (TypeError, ValueError):
+            raise ValueError("Amount must be a number.")
+
+        if amount <= 0:
+            raise ValueError("Amount must be greater than 0.")
+        if amount >= 1_000_000:  
+            raise ValueError("Amount must be less than 1,000,000.")
+        return value
     def __repr__(self):
         return f"<{self.id} {self.loan_type}>"
 
