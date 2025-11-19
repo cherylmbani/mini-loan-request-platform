@@ -166,3 +166,24 @@ if __name__=='__main__':
     app.run(port=5555, debug=True)
    # kill -9 $(lsof -t -i:5555)
 
+'''
+Client → Flask:
+
+Client sends JSON in the HTTP request.
+
+Flask receives it as raw text.
+
+Flask → Python:
+
+request.get_json() converts JSON → Python dictionary.
+
+You can now do data['amount'], data['user_id'], etc., and assign values to your Python objects (like a Loan instance).
+
+Python object → Flask → Client:
+
+Your Loan or User is a Python object.
+
+.to_dict() converts it → Python dictionary.
+
+Flask automatically converts that dict → JSON to send back to the client.
+'''
