@@ -3,10 +3,11 @@ from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_restful import Api, Resource
 from flask_bcrypt import Bcrypt
+import requests
 
 from models import User, Loan, db
 
-app=Flask("__main__")
+app=Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI']='sqlite:///loans.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS']= False
 app.config['SECRET_KEY']='super-secret'
@@ -46,18 +47,15 @@ class SignUp(Resource):
         return response
 class Login(Resource):
     def post(self):
-        user=User.query.filter(id=id).first()
         data=request.get_json()
-        user=User(
-            email=data['email'],
-            password=data["password"]
-        )
-        if user.email=='email' and user.anthenticate():
-            session['user_id']=user.id
-            db.session.commit()
-            return user.to_dict(), 201
-        return {'error':"Email or password incorrect"}, 401
+        email=data['email']
+        password=data['password']
 
+        user=User.query.filter_by(email=email).first()
+        if user and user.authenticate(password):
+            session['user_id']=user.id
+            return user.to_dict(), 200
+        return {'error': "Invalid email or password"}, 401
 class Logout(Resource):
     def post(self):
         session.pop('user_id', None)
@@ -94,15 +92,32 @@ class LoanResource(Resource):
         data=request.get_json()
         new_loan=Loan(
             amount=data['amount'],
-            loan_type=data['loan-type'],
-            application_status=data['application_status'],
-            user_id=data['2']
+            loan_type=data['loan_type'],
+            application_status="PENDING",
+            user_id=data['user_id']
 
         )
         db.session.add(new_loan)
         db.session.commit()
-        response=make_response(new_loan.to_dict(), 201)
-        return response
+        '''
+        Now that the new loan is created, prepare the data
+        that will be sent to the scoring third party
+        '''
+        scoring_payload={
+            "loan_id":new_loan.id,
+            "amount":new_loan.amount,
+            "callback_url": "https://yourapp.com/scoring/callback"
+
+        }
+        ##then send the data but in json format
+        requests.post("https://creditapi.com/score", json=scoring_payload)
+
+        #Then respond to the user
+        return {
+            "message": "Loan submitted successfully", 
+        }, 201
+
+        
 
 class LoanResourceById(Resource):
     def get(self, id):
@@ -118,12 +133,31 @@ class LoanResourceById(Resource):
             response=make_response(loan_dict, 200)
             return response
 
+
+from flask_restful import Resource
+
+class ScoringCallback(Resource):
+    def post(self):
+        data = request.get_json()
+        loan = Loan.query.get(data['loan_id'])
+        if not loan:
+            return {"error": "Loan not found"}, 404
+
+        loan.score = data['score']
+        loan.application_status = data['decision']  # approved / rejected
+        db.session.commit()
+
+        return {"message": "Callback processed"}, 200
+
+
 api.add_resource(Welcome, '/welcome')
 api.add_resource(SignUp, '/signup')
 api.add_resource(Login, '/login')
 api.add_resource(Logout, '/logout')
 api.add_resource(UserResource, '/users')
 api.add_resource(LoanResourceById, '/loans/<int:id>')
+api.add_resource(LoanResource, '/loan')
+api.add_resource(ScoringCallback, '/scoring/callback')
 
 
 
